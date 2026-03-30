@@ -8,6 +8,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "./src",
+    "types": ["bun", "node"],
+
     /* Emit */
     "outDir": "./dist",
     "declaration": true,
