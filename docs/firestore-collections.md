@@ -123,6 +123,8 @@ collection === target || collection.endsWith(`/${target}`)
 - "Similar transactions" - computed by matching `name`/`original_name`
 - "Split" - creates child transactions with parent reference
 - Transaction type ("Regular" vs "Internal Transfer") maps to `internal_transfer`
+- The Filter > Type menu shows 4 types: **Income** (negative amount / income category), **Internal Transfer** (`internal_transfer: true`), **Recurring** (linked to a recurring pattern), **Regular** (default). "Income" and "Recurring" are computed, not stored as separate fields.
+- Filter dimensions: Account, Category, Date, Goals, Keywords, Recurring, Review status, Tags, Type
 
 ---
 
@@ -465,7 +467,7 @@ Security reference data (stocks, ETFs, mutual funds, cash).
 | `next_update` | string | Expected next update time |
 | `update_frequency` | number | Update interval in seconds (300=5min, 86400=daily) |
 | `source` | string | Price source: `"polygon"`, `"eod"` |
-| `comparison` | boolean | Used as comparison benchmark |
+| `comparison` | boolean | Used as comparison benchmark (e.g., VOO for Performance vs Benchmark chart) |
 | `option_contract` | object/null | Options data |
 | `proxy_security_id` | string/null | Proxy security |
 | `trades_24_7` | boolean | 24/7 trading (crypto) |
@@ -763,13 +765,17 @@ Securities are identified by SHA256 hashes (64 hex chars), NOT ticker symbols. T
 | Accounts list | `accounts`, `user accounts`, `items` | Merge with customizations |
 | Account detail | `accounts`, `balance_history`, `transactions`, `financial_goals` | Chart + transactions + linked goals |
 | Investments overview | `accounts` (investment type), `securities` | Filter investment accounts |
-| Investment account detail | `accounts`, `holdings`, `securities`, `investment_prices` | Holdings + allocation |
+| Investments - Performance vs Benchmark | `investment_performance/*/twr_holding`, `securities` (where `comparison: true`) | TWR data + benchmark security (e.g., VOO) |
+| Investments - Allocation | `holdings`, `securities` | Group by `securities.type` (Equity/ETF/Mutual Fund/Cash) |
+| Investments - Settings | `users` | Live balance estimate toggle, benchmark selection, included accounts |
+| Investment account detail | `accounts`, `holdings`, `securities`, `investment_prices` | Holdings + per-account allocation |
 | Security detail | `securities`, `investment_prices`, `holdings`, `twr_holding` | Price chart + metrics + positions |
 | Categories list | `categories`, `transactions`, `budgets` | Hierarchical with spending |
 | Category detail | `categories`, `transactions` | Spending + key metrics + tx list |
 | Recurrings list | `recurring` | Grouped by state + payment status |
 | Recurring detail | `recurring`, `transactions`, `accounts` | Rules + chart + history |
 | Settings - Tags | `tags` | Tag list with colors |
+| Settings - Connections | `items`, `items/*/accounts` | Institution list with linked date, account count, status (needs attention / healthy) |
 | Settings - General | `users` | User preferences |
 
 ---
