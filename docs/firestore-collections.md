@@ -180,45 +180,58 @@ User overrides for account display. Must be checked BEFORE main `accounts` since
 **Path:** `users/{user_id}/recurring/{recurring_id}`
 **App view:** Recurrings list (This month / Overdue / In the future / Paused / Archived), Recurring detail panel
 
-| Field | Type | Description |
-|---|---|---|
-| `id` | string | Unique identifier (mapped to `recurring_id`) |
-| `name` | string | Display name (user-editable) |
-| `emoji` | string | Display emoji |
-| `amount` | number | Expected amount (positive = expense) |
-| `min_amount` | number | Minimum amount for matching range |
-| `max_amount` | number | Maximum amount for matching range |
-| `frequency` | string | See frequency values below |
-| `state` | string | `"active"`, `"paused"`, `"archived"` |
-| `latest_date` | string | Last payment date (YYYY-MM-DD) |
-| `category_id` | string | Internal category ID |
-| `plaid_category_id` | string | Plaid category ID |
-| `match_string` | string | Merchant name pattern for matching |
-| `transaction_ids` | string[] | Associated transaction IDs |
-| `included_transaction_ids` | string[] | Manually included |
-| `excluded_transaction_ids` | string[] | Manually excluded |
-| `days_filter` | number | Day of month filter for matching |
-| `skip_filter_update` | boolean | Skip automatic filter updates |
-| `identification_method` | string | Detection method (e.g., `"new_existing"`) |
-| `_origin` | string | Source (e.g., `"firebase"`) |
+| Field | Type | Description | In Schema? |
+|---|---|---|---|
+| `id` | string | Unique identifier (decoder maps to `recurring_id`) | Yes |
+| `name` | string | Display name (user-editable) | Yes |
+| `merchant_name` | string | Merchant name (fallback display name) | Yes |
+| `emoji` | string | Display emoji | Yes |
+| `amount` | number | Expected amount (positive = expense) | Yes |
+| `min_amount` | number | Minimum amount for matching range | Yes |
+| `max_amount` | number | Maximum amount for matching range | Yes |
+| `frequency` | string | See frequency values below | Yes |
+| `state` | string | `"active"`, `"paused"`, `"archived"` | Yes |
+| `is_active` | boolean | Legacy field, derived from `state` for compatibility | Yes |
+| `latest_date` | string | Last payment date (YYYY-MM-DD). Decoder maps to `last_date` | Yes (as `last_date`) |
+| `category_id` | string | Internal category ID | Yes |
+| `plaid_category_id` | string | Plaid category ID | Yes |
+| `account_id` | string | Account this recurring is charged to | Yes |
+| `match_string` | string | Merchant name pattern for matching | Yes |
+| `transaction_ids` | string[] | Associated transaction IDs | Yes |
+| `included_transaction_ids` | string[] | Manually included transaction IDs | No (dropped by strict schema) |
+| `excluded_transaction_ids` | string[] | Manually excluded transaction IDs | No (dropped by strict schema) |
+| `days_filter` | number | Day of month filter for matching | Yes |
+| `skip_filter_update` | boolean | Whether to skip automatic filter updates | No (dropped by strict schema) |
+| `identification_method` | string | Detection method (e.g., `"new_existing"`) | No (dropped by strict schema) |
+| `iso_currency_code` | string | Currency code | Yes |
+| `_origin` | string | Source (e.g., `"firebase"`) | No (dropped by strict schema) |
 
 **Frequency values:** `daily`, `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `quadmonthly`, `semiannually`, `annually`/`yearly`
 
+**Field name mapping quirks:**
+- Firestore stores `id`, decoder maps to `recurring_id`
+- Firestore stores `latest_date`, decoder maps to `last_date`
+- `next_date` is **computed** by the decoder from `latest_date` + `frequency`, not stored in Firestore (but the decoder also checks for an explicit `next_date` field as fallback)
+- `is_active` is derived from `state` by the decoder for backwards compatibility
+
 **App detail panel shows:**
-- RULES section: Named match pattern, amount range, day filter, frequency
+- Header: "Monthly recurring" (type + frequency)
+- Category badge, emoji + name, next payment amount + date
+- RULES section: Named match pattern (`match_string`), amount range (`min_amount` to `max_amount`), day filter (`days_filter`), frequency
 - Payment history chart (monthly amounts over time)
 - Key metrics: Spent per year, Avg transaction
-- Last account used (with balance)
-- Transaction history list
+- Last account used: account name + mask + balance
+- Transaction history list with ADD button
+- Three-dot menu: **Pause** (sets `state: "paused"`), **Archive** (sets `state: "archived"`), **Delete**
 
 **UI grouping:**
-- **This month**: Active with `latest_date` or calculated `next_date` in current month
+- **This month**: Active with `latest_date` or calculated `next_date` in current month; checkmark shows paid
 - **Overdue**: Active where `next_date` < today
 - **In the future**: Active where `next_date` > current month
 - **Paused**: `state: "paused"`
 - **Archived**: `state: "archived"`
 
-**`next_date` is NOT stored** - must be calculated from `latest_date` + `frequency`.
+**List item display:** date, emoji, name, frequency label, category badge, amount, paid checkmark
 
 ---
 
