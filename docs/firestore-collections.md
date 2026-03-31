@@ -1,6 +1,8 @@
 # Copilot Money Firestore Collections
 
-This document describes the Firestore collections used by Copilot Money and their data structures. This knowledge base helps maintain understanding of the local LevelDB cache format across development sessions.
+Complete documentation of all Firestore collections cached locally by Copilot Money. This is the authoritative reference for understanding the local LevelDB data, derived from systematic app screenshots and raw Firestore document inspection.
+
+**Last verified:** 2026-03-30 | **App version:** macOS (App Store) | **Total documents:** ~52,679 across ~35 unique collection patterns
 
 ## Database Location
 
@@ -10,225 +12,148 @@ This document describes the Firestore collections used by Copilot Money and thei
 
 ## Collection Path Structure
 
-Firestore stores documents with hierarchical paths. In the LevelDB cache, these appear as:
-
+Firestore documents have hierarchical paths. In LevelDB, keys look like:
 ```
-users/{user_id}/{collection}/{document_id}
-```
-
-For subcollections:
-```
-users/{user_id}/{parent_collection}/{parent_id}/{subcollection}/{document_id}
+remote_document/projects/copilot-production-22904/databases/(default)/documents/{collection}/{doc_id}
 ```
 
-### Key Parsing
+Key separator in binary: `0x00 0x01 0xBE`
 
-LevelDB keys use a binary format with segments separated by `0x00 0x01 0xBE`. When parsing:
-- The full collection path should be preserved (e.g., `users/{user_id}/financial_goals`)
-- Document ID is the last segment
-- For subcollections, parent IDs are embedded in the path
+### Path matching
+
+Collections can appear as simple names or full paths:
+```typescript
+collection === target || collection.endsWith(`/${target}`)
+```
 
 ---
 
-## Collections
+## Collection Inventory
+
+| Collection Pattern | Count | Decoded? | Description |
+|---|---|---|---|
+| `transactions` | ~5,500+ | Yes | Financial transactions |
+| `accounts` | ~20 | Yes | Plaid account data |
+| `users/{user_id}/accounts` | ~20 | Yes | User account customizations |
+| `users/{user_id}/recurring` | ~66 | Yes | Recurring transaction patterns |
+| `users/{user_id}/budgets` | ~36 | Yes | Budget configurations |
+| `users/{user_id}/categories` | ~32 | Yes | User-defined categories |
+| `users/{user_id}/financial_goals` | ~2 | Yes | Savings goals |
+| `users/{user_id}/financial_goals/{id}/financial_goal_history` | ~2 | Yes | Goal progress snapshots |
+| `investment_prices/{security_hash}` | ~25,555 | Yes | Investment price data |
+| `investment_prices/{hash}/daily` | ~225 | Yes | Daily price subcollection |
+| `investment_prices/{hash}/hf` | ~850 | Yes | High-frequency price subcollection |
+| `investment_splits` | ~17 | Yes | Stock split records |
+| `items` | ~13 | Yes | Plaid item connections |
+| `items/{id}/accounts/{id}` | ~6,867 | No | Plaid account docs (with holdings) |
+| `items/{id}/accounts/{id}/balance_history` | ~4,945 | No | Daily account balance history |
+| `items/{id}/accounts/{id}/transactions` | ~1,367 | No | Plaid raw transactions |
+| `items/{id}/accounts/{id}/holdings_history/{hash}` | ~630 | No | Holdings snapshot metadata |
+| `items/{id}/accounts/{id}/holdings_history/{hash}/history` | ~84 | No | Daily holdings price/quantity |
+| `items/{id}/accounts` | ~23 | No | Plaid account listing per item |
+| `investment_performance` | ~10 | No | Performance tracking metadata |
+| `investment_performance/{hash}` | ~8,088 | No | Performance data per security |
+| `investment_performance/{hash}/twr_holding` | ~887 | No | Time-weighted return per holding |
+| `securities` | ~17 | No | Security master data |
+| `amazon/{id}` | ~72 | No | Amazon integration metadata |
+| `amazon/{id}/orders` | ~72 | No | Amazon order details |
+| `changes/{id}` | ~995 | No | Sync/change tracking |
+| `changes/{id}/t` | ~535 | No | Transaction changes |
+| `changes/{id}/a` | ~381 | No | Account changes |
+| `users/{user_id}/tags` | ~8 | No | Transaction tags |
+| `users` | 1 | No | User profile/settings |
+| `subscriptions` | 1 | No | App subscription data |
+| `invites` | 2 | No | Referral invite codes |
+| `user_items` | 1 | No | User-to-item mapping |
+| `feature_tracking` | 1 | No | Feature usage tracking |
+| `support` | 1 | No | Feature flags |
+
+---
+
+## Currently Decoded Collections
 
 ### `transactions`
 
-**Path:** `users/{user_id}/transactions/{transaction_id}`
-
-Standard financial transactions from linked accounts.
+**Path:** `users/{user_id}/transactions/{transaction_id}` (or top-level `transactions`)
+**App view:** Transactions list, Transaction detail panel, Dashboard "Transactions to review"
 
 | Field | Type | Description |
-|-------|------|-------------|
-| `transaction_id` | string | Unique identifier |
+|---|---|---|
+| `transaction_id` | string | Unique identifier (= Firestore doc ID) |
 | `amount` | number | Transaction amount (negative = expense, positive = income) |
 | `date` | string | Transaction date (YYYY-MM-DD) |
-| `name` | string | Original transaction name from bank |
-| `display_name` | string | User-edited or cleaned name |
+| `name` | string | Display name (user-edited or cleaned) |
+| `display_name` | string | Alternate display name |
+| `original_name` | string | Raw merchant name from bank |
+| `original_clean_name` | string | Bank-cleaned version |
+| `original_date` | string | Original date before edits |
+| `original_amount` | number | Original amount before edits |
 | `category_id` | string | Category identifier |
+| `category_id_source` | string | How category was assigned |
+| `plaid_category_id` | string | Plaid's category ID |
+| `plaid_category_strings` | string[] | Category hierarchy from Plaid |
 | `account_id` | string | Associated account |
+| `item_id` | string | Plaid item connection |
+| `user_id` | string | User identifier |
 | `pending` | boolean | Whether transaction is pending |
+| `pending_transaction_id` | string | Links pending to posted version |
+| `user_reviewed` | boolean | User has reviewed this transaction |
 | `excluded` | boolean | Excluded from reports |
+| `plaid_deleted` | boolean | Deleted from Plaid |
+| `is_internal_transfer` | boolean | Marked as internal transfer (vs regular) |
+| `is_amazon` | boolean | Amazon transaction flag |
+| `from_investment` | string | Investment-related flag |
+| `payee` | object | `{ name: string }` - who received money |
+| `payer` | object | `{ name: string }` - who sent money |
+| `payment_method` | string | Payment method |
+| `payment_processor` | string | Payment processor |
+| `location` | object | `{ address, city, region, postal_code, country, lat, lon }` |
+| `iso_currency_code` | string | Currency code (e.g., "USD") |
+| `plaid_transaction_type` | string | Plaid transaction type |
+| `reference_number` | string | Reference number |
+| `ppd_id` | string | ACH PPD ID |
+| `by_order_of` | string | ACH originator |
+| `account_dashboard_active` | boolean | Dashboard visibility |
+| `created_timestamp` | timestamp | Creation timestamp |
+| `note` | string | User-added note |
+| `tags` | string[] | User-assigned tag IDs |
+| `goal_id` | string | Associated goal ID |
+
+**App-visible fields not stored directly:**
+- "Similar transactions" - computed by matching `name`/`original_name`
+- "Split" - creates child transactions with parent reference
+- Transaction type ("Regular" vs "Internal Transfer") maps to `is_internal_transfer`
 
 ---
 
 ### `accounts`
 
-**Path:** `users/{user_id}/accounts/{account_id}`
-
-Linked financial accounts (bank accounts, credit cards, investments).
+**Path:** top-level `accounts/{account_id}`
+**App view:** Accounts list, Account detail panel, Sidebar account list
 
 | Field | Type | Description |
-|-------|------|-------------|
+|---|---|---|
 | `account_id` | string | Unique identifier |
 | `name` | string | Account name |
 | `official_name` | string | Official name from institution |
-| `type` | string | Account type (depository, credit, investment, etc.) |
-| `subtype` | string | Account subtype (checking, savings, credit card, etc.) |
+| `type` | string | Account type: `depository`, `credit`, `investment`, `loan`, `brokerage` |
+| `subtype` | string | Subtype: `checking`, `savings`, `credit card`, `401k`, `brokerage`, etc. |
 | `mask` | string | Last 4 digits of account number |
 | `current_balance` | number | Current balance |
 | `available_balance` | number | Available balance |
+| `limit` | number | Credit limit (credit cards only) |
+| `iso_currency_code` | string | Currency code |
 | `institution_id` | string | Plaid institution ID |
-| `user_deleted` | boolean | Whether user has deleted this account |
-
----
-
-### `financial_goals`
-
-**Path:** `users/{user_id}/financial_goals/{goal_id}`
-
-User-defined savings goals.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `goal_id` | string | Unique identifier |
-| `name` | string | Goal name (e.g., "Emergency Fund") |
-| `emoji` | string | Display emoji |
-| `created_date` | string | Creation date (YYYY-MM-DD) |
-| `associated_accounts` | string[] | Account IDs linked to this goal |
-| `created_with_allocations` | boolean | Whether created with account allocations |
-
-**Nested `savings` object:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `target_amount` | number | Target savings amount |
-| `tracking_type` | string | `"monthly_contribution"` or `"end_date"` |
-| `tracking_type_monthly_contribution` | number | Monthly contribution amount (if tracking_type is monthly_contribution) |
-| `start_date` | string | Goal start date (YYYY-MM-DD) |
-| `status` | string | Goal status (`"active"`, `"paused"`, etc.) |
-| `is_ongoing` | boolean | Whether goal continues after target is reached |
-| `inflates_budget` | boolean | Whether goal affects budget calculations |
-
-**Important Notes:**
-- `current_amount` is NOT stored in the goal document itself
-- Current progress is stored in the `financial_goal_history` subcollection
-- The UI calculates "months remaining" from: `(target_amount - current_amount) / monthly_contribution`
-
----
-
-### `financial_goal_history`
-
-**Path:** `users/{user_id}/financial_goals/{goal_id}/financial_goal_history/{month}`
-
-Monthly snapshots of goal progress. Document ID is the month in `YYYY-MM` format.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `user_id` | string | User identifier |
-| `total_contribution` | number | Total contributions for the month |
-| `daily_data` | object | Daily balance snapshots |
-
-**`daily_data` structure:**
-
-```json
-{
-  "2026-01-01": { "balance": 899.6 },
-  "2026-01-13": { "balance": 899.6 }
-}
-```
-
-**Important Notes:**
-- The field is `balance`, NOT `amount` in daily_data entries
-- `current_amount` should be derived from the latest `balance` in `daily_data`
-- Goal ID must be extracted from the collection path at index [3]: `users/[1]/financial_goals/[3]/financial_goal_history`
-
----
-
-### `budgets`
-
-**Path:** `users/{user_id}/budgets/{budget_id}`
-
-Monthly budget configurations.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `budget_id` | string | Unique identifier |
-| `name` | string | Budget name |
-| `amount` | number | Budget limit |
-| `category_id` | string | Associated category (if category-specific) |
-| `period` | string | Budget period (`"monthly"`, etc.) |
-
----
-
-### `recurring`
-
-**Path:** `users/{user_id}/recurring/{recurring_id}`
-
-Recurring transaction patterns (subscriptions, bills) detected or defined by user.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier (stored as `id`, mapped to `recurring_id`) |
-| `name` | string | Display name (user-editable) |
-| `emoji` | string | Display emoji for UI |
-| `amount` | number | Expected amount (positive = expense) |
-| `min_amount` | number | Minimum amount for matching range |
-| `max_amount` | number | Maximum amount for matching range |
-| `frequency` | string | Frequency (see values below) |
-| `state` | string | Status: `"active"`, `"paused"`, `"archived"` |
-| `latest_date` | string | Last payment date (YYYY-MM-DD) |
-| `category_id` | string | Internal category ID |
-| `plaid_category_id` | string | Plaid category ID (e.g., `"18009000"`) |
-| `match_string` | string | Merchant name pattern for matching transactions |
-| `transaction_ids` | string[] | Array of associated transaction IDs |
-| `included_transaction_ids` | string[] | Manually included transaction IDs |
-| `excluded_transaction_ids` | string[] | Manually excluded transaction IDs |
-| `days_filter` | number | Day of month filter for matching |
-| `skip_filter_update` | boolean | Whether to skip automatic filter updates |
-| `identification_method` | string | How the recurring was detected (e.g., `"new_existing"`) |
-| `_origin` | string | Source of the record (e.g., `"firebase"`) |
-
-**Frequency Values:**
-- `daily`, `weekly`, `biweekly` (every 2 weeks)
-- `monthly`, `bimonthly` (every 2 months), `quarterly` (every 3 months)
-- `quadmonthly` (every 4 months), `semiannually` (every 6 months)
-- `annually` / `yearly`
-
-**Important Notes:**
-- `state` replaces the older `is_active` boolean field
-- `latest_date` is the actual field name (not `last_date`)
-- `next_date` is NOT stored - must be calculated from `latest_date` + `frequency`
-- `id` field contains the recurring_id (not `recurring_id`)
-- The UI groups items by state and payment status:
-  - **This Month**: Active items with `latest_date` in current month (paid) or calculated `next_date` in current month (upcoming)
-  - **Overdue**: Active items where calculated `next_date` is before today
-  - **In the Future**: Active items where calculated `next_date` is after current month
-  - **Paused**: Items with `state: "paused"`
-  - **Archived**: Items with `state: "archived"`
-
----
-
-### `categories`
-
-**Path:** `users/{user_id}/categories/{category_id}`
-
-User-defined custom categories.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `category_id` | string | Unique identifier |
-| `name` | string | Category name |
-| `emoji` | string | Display emoji |
-| `parent_id` | string | Parent category (for subcategories) |
-| `is_income` | boolean | Whether this is an income category |
-
-**Note:** Copilot also uses Plaid's standard category taxonomy for bank-provided categories.
-
----
-
-### `items`
-
-**Path:** `users/{user_id}/items/{item_id}`
-
-Plaid Items representing connections to financial institutions.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `item_id` | string | Plaid item identifier |
-| `institution_id` | string | Institution identifier |
 | `institution_name` | string | Institution display name |
-| `status` | string | Connection status |
+| `item_id` | string | Parent Plaid item |
+| `user_deleted` | boolean | User has deleted this account |
+| `holdings` | array | Investment holdings (see Cost Basis section) |
+
+**App-visible data from this collection:**
+- Balance chart uses `balance_history` subcollection (separate)
+- Account balance change % shown in list view
+- Credit limit shown as "/ $27,500.00" next to balance for credit cards
+- "Goals" section on checking accounts links via `financial_goals.associated_accounts`
 
 ---
 
@@ -236,86 +161,621 @@ Plaid Items representing connections to financial institutions.
 
 **Path:** `users/{user_id}/accounts/{account_id}`
 
-**Note:** This is a DIFFERENT collection from the top-level `accounts`. This stores user customizations for accounts.
+User overrides for account display. Must be checked BEFORE main `accounts` since both end with `/accounts`.
 
 | Field | Type | Description |
-|-------|------|-------------|
+|---|---|---|
 | `account_id` | string | References main account |
-| `name` | string | User's custom name for account |
+| `name` | string | User's custom display name |
+| `user_id` | string | User identifier |
 | `hidden` | boolean | Whether account is hidden in UI |
-| `order` | number | Display order |
-
-**Important:** When parsing, this collection must be checked BEFORE the main `accounts` collection since both end with `/accounts`.
+| `order` | number | Display sort order |
 
 ---
 
-### `investment_prices`
+### `users/{user_id}/recurring`
 
-**Path:** Various nested structures for daily and high-frequency prices.
+**Path:** `users/{user_id}/recurring/{recurring_id}`
+**App view:** Recurrings list (This month / Overdue / In the future / Paused / Archived), Recurring detail panel
 
-Investment price history for portfolio tracking.
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Unique identifier (mapped to `recurring_id`) |
+| `name` | string | Display name (user-editable) |
+| `emoji` | string | Display emoji |
+| `amount` | number | Expected amount (positive = expense) |
+| `min_amount` | number | Minimum amount for matching range |
+| `max_amount` | number | Maximum amount for matching range |
+| `frequency` | string | See frequency values below |
+| `state` | string | `"active"`, `"paused"`, `"archived"` |
+| `latest_date` | string | Last payment date (YYYY-MM-DD) |
+| `category_id` | string | Internal category ID |
+| `plaid_category_id` | string | Plaid category ID |
+| `match_string` | string | Merchant name pattern for matching |
+| `transaction_ids` | string[] | Associated transaction IDs |
+| `included_transaction_ids` | string[] | Manually included |
+| `excluded_transaction_ids` | string[] | Manually excluded |
+| `days_filter` | number | Day of month filter for matching |
+| `skip_filter_update` | boolean | Skip automatic filter updates |
+| `identification_method` | string | Detection method (e.g., `"new_existing"`) |
+| `_origin` | string | Source (e.g., `"firebase"`) |
+
+**Frequency values:** `daily`, `weekly`, `biweekly`, `monthly`, `bimonthly`, `quarterly`, `quadmonthly`, `semiannually`, `annually`/`yearly`
+
+**App detail panel shows:**
+- RULES section: Named match pattern, amount range, day filter, frequency
+- Payment history chart (monthly amounts over time)
+- Key metrics: Spent per year, Avg transaction
+- Last account used (with balance)
+- Transaction history list
+
+**UI grouping:**
+- **This month**: Active with `latest_date` or calculated `next_date` in current month
+- **Overdue**: Active where `next_date` < today
+- **In the future**: Active where `next_date` > current month
+- **Paused**: `state: "paused"`
+- **Archived**: `state: "archived"`
+
+**`next_date` is NOT stored** - must be calculated from `latest_date` + `frequency`.
+
+---
+
+### `users/{user_id}/budgets`
+
+**Path:** `users/{user_id}/budgets/{budget_id}`
+**App view:** Categories view "LEFT" column (when budgeting enabled)
+
+| Field | Type | Description |
+|---|---|---|
+| `budget_id` | string | Unique identifier |
+| `name` | string | Budget name |
+| `amount` | number | Budget limit |
+| `category_id` | string | Associated category |
+| `period` | string | Budget period (`"monthly"`, etc.) |
+
+---
+
+### `users/{user_id}/categories`
+
+**Path:** `users/{user_id}/categories/{category_id}`
+**App view:** Categories list with parent/child hierarchy, category detail panel
+
+| Field | Type | Description |
+|---|---|---|
+| `category_id` | string | Unique identifier |
+| `name` | string | Category name |
+| `emoji` | string | Display emoji |
+| `parent_id` | string | Parent category (for subcategories) |
+| `is_income` | boolean | Income category flag |
+| `order` | number | Display sort order |
+
+**App shows:** Hierarchical tree (Food > Restaurants, Bars & Pubs, Groceries, Coffee), spending per category with bar charts, "Last" (previous month) comparison, Key metrics (spent per year, avg monthly), transaction list.
+
+**Note:** Copilot also uses Plaid's standard category taxonomy (hardcoded, not stored in Firestore).
+
+---
+
+### `users/{user_id}/financial_goals`
+
+**Path:** `users/{user_id}/financial_goals/{goal_id}`
+**App view:** Goals list, Goal detail panel
+
+| Field | Type | Description |
+|---|---|---|
+| `goal_id` | string | Unique identifier |
+| `name` | string | Goal name |
+| `emoji` | string | Display emoji |
+| `created_date` | string | Creation date (YYYY-MM-DD) |
+| `associated_accounts` | string[] | Account IDs linked to this goal |
+| `created_with_allocations` | boolean | Whether created with account allocations |
+| `savings.target_amount` | number | Target savings amount |
+| `savings.tracking_type` | string | `"monthly_contribution"` or `"end_date"` |
+| `savings.tracking_type_monthly_contribution` | number | Monthly contribution (if applicable) |
+| `savings.start_date` | string | Goal start date |
+| `savings.end_date` | string | Target end date |
+| `savings.status` | string | `"active"`, `"paused"`, etc. |
+| `savings.is_ongoing` | boolean | Continues after target reached |
+| `savings.inflates_budget` | boolean | Affects budget calculations |
+
+**App detail shows:**
+- Saved amount / to go
+- Progress chart over time
+- "You need to save $X per month" calculation
+- Summary: Goal amount, Start date, Target date, Saving mode (Target date / Monthly contribution)
+- Contributions: Account name + mask + contribution amount
+- Transactions: ability to link transactions to goal
+
+**`current_amount` is NOT stored here** - derived from `financial_goal_history`.
+
+---
+
+### `users/{user_id}/financial_goals/{goal_id}/financial_goal_history`
+
+**Path:** `users/{user_id}/financial_goals/{goal_id}/financial_goal_history/{month}`
+**Document ID** is the month in `YYYY-MM` format.
+
+| Field | Type | Description |
+|---|---|---|
+| `user_id` | string | User identifier |
+| `total_contribution` | number | Total contributions for the month |
+| `daily_data` | object | Daily balance snapshots |
+
+**`daily_data` structure:**
+```json
+{
+  "2026-01-01": { "balance": 899.6 },
+  "2026-01-13": { "balance": 899.6 }
+}
+```
+
+**Important:** Field is `balance`, NOT `amount`. Goal ID extracted from path at index [3].
+
+---
+
+### `investment_prices/{security_hash}`
+
+**Path:** `investment_prices/{security_hash}` and subcollections `daily/{month}`, `hf/{date}`
+**App view:** Investment holding detail price chart
+
+Stores daily and high-frequency price data per security (identified by SHA256 hash).
+
+| Field | Type | Description |
+|---|---|---|
+| `investment_id` | string | Security hash identifier |
+| `ticker_symbol` | string | Ticker (e.g., "DASH", "META") |
+| `date` | string | Date for HF prices |
+| `month` | string | Month for daily prices (YYYY-MM) |
+| `close_price` | number | Closing price |
+| `open_price` | number | Opening price |
+| `high_price` | number | High price |
+| `low_price` | number | Low price |
 
 ---
 
 ### `investment_splits`
 
-Stock split information for accurate historical calculations.
+**Path:** `investment_splits/{split_id}`
+
+| Field | Type | Description |
+|---|---|---|
+| `split_id` | string | Unique identifier |
+| `ticker_symbol` | string | Ticker symbol |
+| `split_date` | string | Split date |
+| `split_ratio` | string | Ratio (e.g., "4:1") |
+
+---
+
+### `items`
+
+**Path:** `items/{item_id}`
+**App view:** Settings > Connections, "Connection needing attention" in Accounts view
+
+| Field | Type | Description |
+|---|---|---|
+| `item_id` | string | Plaid item identifier |
+| `institution_id` | string | Institution identifier |
+| `institution_name` | string | Display name |
+| `connection_status` | string | Connection status |
+| `needs_update` | boolean | Needs user reverification |
+| `consent_expiration_time` | string | When consent expires |
+| `error` | object | Error details if connection broken |
+
+---
+
+## Undecoded Collections
+
+### `items/{item_id}/accounts/{account_id}` (Plaid Account Documents)
+
+**~6,867 documents** | **High priority - contains holdings with cost basis**
+
+These are the raw Plaid account documents, distinct from the top-level `accounts` collection. They contain the `holdings` array with cost basis data.
+
+**Known fields:** All standard account fields plus nested `holdings` array.
+
+Each holdings entry:
+| Field | Type | Description |
+|---|---|---|
+| `cost_basis` | number/null | Total cost basis in dollars (NOT per-share) |
+| `institution_price` | number | Current price per share (from institution) |
+| `institution_value` | number | Current total value |
+| `quantity` | number | Number of shares |
+| `security_id` | string | SHA256 hash linking to `securities` |
+| `account_id` | string | Parent account |
+| `iso_currency_code` | string | Currency |
+| `vested_quantity` | number | Vested shares |
+| `vested_value` | number | Vested value |
+
+**Average cost = cost_basis / quantity** (verified against app screenshots).
+
+---
+
+### `items/{item_id}/accounts/{account_id}/balance_history`
+
+**~4,945 documents** | **High priority - powers account balance charts**
+
+Daily balance snapshots. Document ID is the date (YYYY-MM-DD).
+
+| Field | Type | Description |
+|---|---|---|
+| `current_balance` | number | Balance on that date |
+| `available_balance` | number | Available balance (optional) |
+| `limit` | number/null | Credit limit (optional) |
+| `_origin` | string | Source (`"firebase"`) |
+
+**App usage:** Powers the balance chart (1W/1M/YTD/3M/1Y/ALL) on account detail panels and the Assets/Debt chart on Dashboard.
+
+---
+
+### `items/{item_id}/accounts/{account_id}/transactions`
+
+**~1,367 documents** | **Medium priority**
+
+Raw Plaid transaction data per account. These appear to be a denormalized copy of transactions organized by account, likely used for the account-specific transaction lists.
+
+---
+
+### `items/{item_id}/accounts/{account_id}/holdings_history/{security_hash}/history`
+
+**~84 documents** | **Medium priority - powers holdings charts**
+
+Daily price and quantity snapshots per holding per account. Document ID is the month (YYYY-MM).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Month identifier (YYYY-MM) |
+| `history` | object | Map of epoch_ms -> `{ price, quantity }` |
+
+**History entry structure:**
+```json
+{
+  "1768539600000": { "price": 150.16, "quantity": 913.028 },
+  "1768626000000": { "price": 150.11, "quantity": 913.028 }
+}
+```
+
+Keys are Unix timestamps in milliseconds. For cash positions, price=1 and quantity=0.
+
+---
+
+### `securities`
+
+**17 documents** | **High priority - security master data**
+
+Security reference data (stocks, ETFs, mutual funds, cash).
+
+| Field | Type | Description |
+|---|---|---|
+| `security_id` | string | SHA256 hash (= doc ID) |
+| `ticker_symbol` | string | Ticker (e.g., "VIGAX", "BNDX", "DASH") |
+| `name` | string | Full security name |
+| `type` | string | `"etf"`, `"equity"`, `"mutual fund"`, `"cash"`, `"derivative"` |
+| `provider_type` | string | `"ETF"`, `"FUND"`, `"EQUITY"` |
+| `close_price` | number | Last closing price |
+| `current_price` | number | Current/live price |
+| `close_price_as_of` | string/null | Close price date |
+| `is_cash_equivalent` | boolean | Cash equivalent flag |
+| `iso_currency_code` | string | Currency |
+| `isin` | string/null | ISIN identifier |
+| `cusip` | string/null | CUSIP identifier |
+| `sedol` | string/null | SEDOL identifier |
+| `institution_id` | string/null | Institution |
+| `institution_security_id` | string/null | Institution's ID |
+| `market_identifier_code` | string/null | MIC |
+| `last_update` | string | ISO timestamp of last price update |
+| `next_update` | string | Expected next update time |
+| `update_frequency` | number | Update interval in seconds (300=5min, 86400=daily) |
+| `source` | string | Price source: `"polygon"`, `"eod"` |
+| `comparison` | boolean | Used as comparison benchmark |
+| `option_contract` | object/null | Options data |
+| `proxy_security_id` | string/null | Proxy security |
+| `trades_24_7` | boolean | 24/7 trading (crypto) |
+| `unofficial_currency_code` | string/null | Non-ISO currency |
+| `cik` | string/null | SEC CIK number |
+| `_origin` | string | Source flag |
+| `info` | object | Additional metadata |
+| `update_datetime` | string | Update timestamp |
+
+**App usage:** Security detail panel shows ticker, full name, type badge ("Equity"/"ETF"), current price, price chart, and links to positions across accounts.
+
+---
+
+### `investment_performance`
+
+**10 documents** | **Medium priority - performance tracking**
+
+Top-level documents that define which securities have performance tracking.
+
+| Field | Type | Description |
+|---|---|---|
+| `securityId` | string | Security hash |
+| `type` | string | `"overall-security"` |
+| `userId` | string | `"all"` |
+| `access` | string[] | `["all"]` |
+| `position` | number | Display position/order |
+| `last_update` | string | ISO timestamp |
+
+---
+
+### `investment_performance/{security_hash}/twr_holding`
+
+**~887 documents** | **Medium priority - time-weighted returns**
+
+Monthly time-weighted return (TWR) data per security. Document ID is the month (YYYY-MM).
+
+| Field | Type | Description |
+|---|---|---|
+| `history` | object | Map of epoch_ms -> `{ value }` |
+
+**History entry:** `value` is a decimal TWR (e.g., -0.001024 = -0.1% return).
+
+```json
+{
+  "1609822800000": { "value": -0.0010245901639344135 },
+  "1609909200000": { "value": -0.0023907103825137055 }
+}
+```
+
+**App usage:** Powers the "Total return" metric and investment performance charts. The percentage shown in the app (e.g., "-32.86%") is likely derived from this TWR data.
+
+---
+
+### `amazon/{user_id}/orders`
+
+**72 documents** | **Low priority - Copilot Labs feature (currently Off)**
+
+Amazon order integration. Matches Amazon orders to bank transactions.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Amazon order ID (e.g., "111-0005209-8579475") |
+| `date` | string | Order date (YYYY-MM-DD) |
+| `account_id` | string | Linked bank account (hashed) |
+| `match_state` | string | `"AUTO"` - how order was matched to transactions |
+| `items` | array | Order items: `[{ id, name, price, quantity, link }]` |
+| `details` | object | `{ beforeTax, shipping, subtotal, tax, total }` |
+| `payment` | object | `{ card: "1178" }` - last 4 digits |
+| `transactions` | array | Matched transaction IDs |
+| `copilot_tx` | object | Transaction-to-items mapping (keyed by tx ID) |
+
+Each item in `copilot_tx[tx_id]`:
+```json
+{
+  "items": [{ "id": "B0BGGCYK5J", "name": "...", "price": 11.9, "quantity": 1, "link": "..." }],
+  "other": { "giftWrapping": 0, "rewards": 0, "savings": 0, "shipping": 0, "tax": 1.22 }
+}
+```
+
+---
+
+### `users/{user_id}/tags`
+
+**8 documents** | **Medium priority**
+
+User-defined tags for categorizing transactions. Visible in Settings > Tags and Transaction detail panel.
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Tag name (e.g., "Tahiti", "papas-2025") |
+| `color_name` | string | Named color (e.g., "olive10") |
+| `hex_color` | string | Hex color with alpha (e.g., "#939D00FF") |
+
+**App view:** Tags settings shows color dots + names. Transaction detail has "Tags" section with "Add tag" button.
+
+---
+
+### `users` (User Profile)
+
+**1 document** | **Low priority - user settings**
+
+User profile and app settings. Document ID is the Firebase user ID.
+
+| Field | Type | Description |
+|---|---|---|
+| `_origin` | string | `"ios"` |
+| `account_creation_timestamp` | string | ISO timestamp |
+| `accounts_config` | object | Account display config (`combine_assets_and_debt`, `excluded_accounts`, `single_line`) |
+| `authentication_required` | boolean | Biometric auth required |
+| `auto_terms_timestamps` | object | Terms acceptance timestamps |
+| `budgeting_enabled` | boolean | Budgeting feature toggle |
+| `data_initialized` | boolean | Initial data load complete |
+| `fcm_tokens` | string[] | Push notification tokens |
+| `finance_goals_monthly_summary_mode_enabled` | boolean | Goals summary mode |
+| `finance_goals_review_timestamps` | object | Per-goal review timestamps |
+| `intelligence_categories_review_count` | number | Category reviews count |
+| `investments_performance_initialized` | boolean | Performance data loaded |
+| `items_disconnect_on_ms` | number | When items disconnect (subscription end) |
+| `last_cold_open` | string | Last app cold open timestamp |
+| `last_warm_open` | string | Last app warm open timestamp |
+| `last_month_reviewed` | string | Last reviewed month |
+| `last_year_reviewed` | string | Last reviewed year |
+| `latest_spending_trigger` | object | Spending notification trigger |
+| `logged_out` | boolean | Logged out flag |
+| `match_internal_txs_enabled` | boolean | Internal transfer matching |
+| `ml_report` | object | ML categorization report |
+| `notifications` | object | Notification preferences |
+| `onboarding_completed` | boolean | Onboarding done |
+| `onboarding_completed_timestamp` | string | When onboarding completed |
+| `onboarding_last_completed_step` | string | Last onboarding step |
+| `public_id` | string | Public user ID |
+| `rollovers_enabled` | boolean | Budget rollovers |
+| `rollovers_starte_date` | string | Rollover start date (note: typo in field name) |
+| `service_ends_on_ms` | number | Subscription end timestamp |
+| `terms_timestamps` | object | Terms acceptance dates |
+
+**App usage:** Maps to Settings toggles (Budgeting, notifications, etc.)
+
+---
+
+### `subscriptions`
+
+**1 document** | **Low priority**
+
+App Store subscription data including Apple receipt.
+
+| Field | Type | Description |
+|---|---|---|
+| `_origin` | string | `"firebase"` |
+| `created_timestamp` | string | Subscription start |
+| `environment` | string | `"Production"` |
+| `expires_date_ms` | string | Expiration epoch ms |
+| `is_eligible_for_initial_offer` | boolean | Trial eligibility |
+| `product_id` | string | `"com.copilot.production.subscription.yearly.1month"` |
+| `provider` | string | `"apple"` |
+| `price` | number | Price (95 = yearly) |
+| `user_id` | string | Firebase user ID |
+| `will_auto_renew` | boolean | Auto-renewal status |
+| `original_transaction_id` | string | Apple transaction ID |
+| `latest_result` | object | Full Apple receipt validation result |
+
+---
+
+### `invites`
+
+**2 documents** | **Low priority**
+
+Referral/gift invite codes.
+
+| Field | Type | Description |
+|---|---|---|
+| `code` | string | Invite code |
+| `inviter_id` | string | User who created invite |
+| `is_available` | boolean | Whether invite can be redeemed |
+| `is_unlimited` | boolean | Unlimited use flag |
+| `assigned` | boolean | Has been assigned |
+| `product_id` | string | Gift product (e.g., `"com.copilot.production.consumable.gift.6months"`) |
+| `offer_reviewed` | boolean | Offer reviewed flag |
+
+---
+
+### `user_items`
+
+**1 document** | **Low priority**
+
+Maps user ID to their Plaid item IDs. Document ID is the user ID, fields are item IDs with boolean values.
+
+```json
+{
+  "k1Eww8kakdUvQoZXkopjI5XPnw3nLBuRANMdp": true,
+  "BnXp1XP03QTyJMb1yD3YUjJxgY7ywkH9QVw50": true
+}
+```
+
+---
+
+### `feature_tracking`
+
+**1 document** | **Low priority**
+
+Tracks feature onboarding steps. Document ID is user ID.
+
+```json
+{
+  "fwd:email@example.com": {
+    "COMPLETED": "2023-09-13T19:01:46.347Z",
+    "FWD_GMAIL": "2023-09-13T19:00:42.254Z",
+    "INITIAL_GMAIL": "2023-09-13T18:57:53.538Z"
+  },
+  "venmo": {
+    "CREATE_ITEM": "2023-09-13T18:57:53.271Z"
+  }
+}
+```
+
+---
+
+### `support`
+
+**1 document** | **Low priority**
+
+Feature flags for support features. Document ID: `feature_flags`.
+
+```json
+{
+  "mint": { "enabled": true, "percentage": 1 }
+}
+```
+
+---
+
+### `changes/{timestamp}`
+
+**~995 documents** | **Low priority - internal sync**
+
+Change tracking for Firestore sync. Documents are mostly empty containers. Subcollections:
+- `changes/{id}/t` (~535 docs) - Transaction changes
+- `changes/{id}/a` (~381 docs) - Account changes
 
 ---
 
 ## Data Quirks and Gotchas
 
 ### 1. Collection Path Matching
-
-Collections can appear as either:
-- Simple: `transactions`
-- Full path: `users/{user_id}/transactions`
-
-Always use `endsWith()` matching:
-```typescript
-collection === target || collection.endsWith(`/${target}`)
-```
+Collections can appear as either simple or full path. Always use `endsWith()` matching.
 
 ### 2. User Accounts vs Main Accounts
+Both end with `/accounts`. Check for user accounts (`users/{user_id}/accounts`) FIRST.
 
-Both end with `/accounts` but are different:
-- `accounts` - Main account data from Plaid
-- `users/{user_id}/accounts` - User customizations
+### 3. Goal Progress
+Goals store config (target, rate). Progress (`current_amount`) is in `financial_goal_history`. Must join to get complete state.
 
-Check for user accounts FIRST when routing documents.
-
-### 3. Goal Progress Data
-
-- Goals store configuration (target, contribution rate)
-- Progress (current_amount) is in `financial_goal_history`
-- Must join these to get complete goal state
-- Daily data uses `balance` field, not `amount`
-
-### 4. Subcollection Path Parsing
-
-For `users/{user_id}/financial_goals/{goal_id}/financial_goal_history/{month}`:
-- Split by `/` to get segments
-- Index [3] = goal_id
-- Index [5] or last segment = document_id (month)
-
-### 5. Amount Sign Convention
-
+### 4. Amount Sign Convention
 - Expenses: negative amounts
 - Income: positive amounts
-- This matches Copilot's UI display format
 
-### 6. Excluded Transactions
+### 5. Pending Transaction Reconciliation
+When a charge posts, two versions coexist. The posted version has `pending_transaction_id` pointing to the pending one. Reconcile by dropping superseded pending transactions.
 
-Transactions can be excluded via:
-- `excluded: true` field
-- Category-based exclusion rules
-- User deletion
+### 6. Investment Data Architecture
+Investment data is spread across multiple collections:
+- `securities` - Master data (ticker, name, type, current price)
+- `items/*/accounts/*` - Holdings array (cost_basis, quantity, institution_price)
+- `investment_prices/{hash}` - Historical prices (daily + high-frequency)
+- `investment_performance/{hash}/twr_holding` - Time-weighted returns
+- `items/*/accounts/*/holdings_history/{hash}/history` - Historical holdings snapshots
+- `investment_splits` - Stock split adjustments
+
+To recreate the app's investment view, join: security via `security_id` hash, holdings from account docs, prices from `investment_prices`, returns from `investment_performance`.
+
+### 7. Epoch Timestamps
+`holdings_history` and `twr_holding` use Unix epoch milliseconds as object keys (e.g., `"1768539600000"`). Convert with `new Date(parseInt(key))`.
+
+### 8. Security Hash IDs
+Securities are identified by SHA256 hashes (64 hex chars), NOT ticker symbols. The hash is used consistently across `securities`, `investment_prices`, `investment_performance`, and `holdings` arrays.
+
+---
+
+## App View to Collection Mapping
+
+| App View | Primary Collections | Computed From |
+|---|---|---|
+| Dashboard - Monthly spending | `transactions` | Sum of expenses in current month |
+| Dashboard - Assets/Debt | `accounts`, `balance_history` | Current balances + historical chart |
+| Dashboard - Transactions to review | `transactions` | Filter: `user_reviewed == false` |
+| Dashboard - Top categories | `transactions`, `categories` | Group by category, sum amounts |
+| Dashboard - Next two weeks | `recurring` | Calculate next dates from `latest_date` + `frequency` |
+| Transactions list | `transactions` | Sorted by date, grouped by day |
+| Transaction detail | `transactions`, `categories`, `accounts`, `tags` | Joined data |
+| Goals list | `financial_goals`, `financial_goal_history` | Join for current progress |
+| Goal detail | `financial_goals`, `financial_goal_history`, `accounts` | Join goal + history + contributions |
+| Cash flow | `transactions` | Computed: income vs expenses over time |
+| Accounts list | `accounts`, `user accounts`, `items` | Merge with customizations |
+| Account detail | `accounts`, `balance_history`, `transactions`, `financial_goals` | Chart + transactions + linked goals |
+| Investments overview | `accounts` (investment type), `securities` | Filter investment accounts |
+| Investment account detail | `accounts`, `holdings`, `securities`, `investment_prices` | Holdings + allocation |
+| Security detail | `securities`, `investment_prices`, `holdings`, `twr_holding` | Price chart + metrics + positions |
+| Categories list | `categories`, `transactions`, `budgets` | Hierarchical with spending |
+| Category detail | `categories`, `transactions` | Spending + key metrics + tx list |
+| Recurrings list | `recurring` | Grouped by state + payment status |
+| Recurring detail | `recurring`, `transactions`, `accounts` | Rules + chart + history |
+| Settings - Tags | `tags` | Tag list with colors |
+| Settings - General | `users` | User preferences |
 
 ---
 
 ## Version History
 
 | Date | Changes |
-|------|---------|
-| 2026-01-18 | Updated `recurring` collection with complete field list: `state`, `emoji`, `latest_date`, `match_string`, `min_amount`/`max_amount`, `transaction_ids`, `plaid_category_id`, etc. Added UI grouping logic notes. |
-| 2026-01-18 | Initial documentation. Added goal history parsing fixes. |
+|---|---|
+| 2026-03-30 | **Major rewrite.** Complete inventory of all 35 collection patterns from full cache dump (52,679 docs). Added: securities, amazon/orders, balance_history, holdings_history, investment_performance/twr_holding, tags, users profile, subscriptions, invites, user_items, feature_tracking, support, changes. Added app view to collection mapping. Added investment data architecture notes. |
+| 2026-01-18 | Updated `recurring` collection with complete field list. |
+| 2026-01-18 | Initial documentation. |
