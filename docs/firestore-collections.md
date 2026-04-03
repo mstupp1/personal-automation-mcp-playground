@@ -2,7 +2,9 @@
 
 Complete documentation of all Firestore collections cached locally by Copilot Money. This is the authoritative reference for understanding the local LevelDB data, derived from systematic app screenshots and raw Firestore document inspection.
 
-**Last verified:** 2026-03-30 | **App version:** macOS (App Store) | **Total documents:** ~52,679 across ~35 unique collection patterns
+**Last verified:** 2026-04-02 | **App version:** macOS (App Store) | **Total documents:** ~55,953 across ~35 unique collection patterns
+
+**Decode coverage:** 55.3% (30,941 / 55,953 documents) — run `bun run scripts/decode-coverage.ts` for latest numbers
 
 ## Database Location
 
