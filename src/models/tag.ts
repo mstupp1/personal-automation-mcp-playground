@@ -23,3 +23,7 @@ export const TagSchema = z
   .passthrough();
 
 export type Tag = z.infer<typeof TagSchema>;
+
+export function getTagDisplayName(tag: Tag): string {
+  return tag.name || tag.tag_id;
+}
