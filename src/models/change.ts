@@ -17,6 +17,9 @@ export const ChangeSchema = z
   .passthrough();
 export type Change = z.infer<typeof ChangeSchema>;
 
+// TransactionChange and AccountChange are structurally identical but represent
+// semantically distinct subcollections (changes/{id}/t vs changes/{id}/a).
+// Kept as separate schemas for type safety and future field divergence.
 export const TransactionChangeSchema = z
   .object({
     change_id: z.string(),
