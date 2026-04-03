@@ -1617,8 +1617,10 @@ function processHoldingsHistory(
 function processChange(fields: Map<string, FirestoreValue>, docId: string): Change | null {
   const data: Record<string, unknown> = { change_id: docId };
   for (const [key, value] of fields) {
-    const extracted = extractValue(value);
-    if (extracted !== undefined) data[key] = extracted;
+    if (!(key in data)) {
+      const extracted = extractValue(value);
+      if (extracted !== undefined) data[key] = extracted;
+    }
   }
   const validated = ChangeSchema.safeParse(data);
   return validated.success ? validated.data : null;
