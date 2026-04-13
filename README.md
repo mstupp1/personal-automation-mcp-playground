@@ -206,7 +206,14 @@ Write tools modify your Copilot Money data by sending authenticated requests dir
 
 This repo includes [`scripts/mcp-telegram-wrapper.mjs`](scripts/mcp-telegram-wrapper.mjs) as a local compatibility wrapper for `@iqai/mcp-telegram` when used from Codex.
 
-The upstream package was not designed for Codex's MCP expectations. In practice it writes normal logs to `stdout`, which interferes with stdio transport, so Codex cannot reliably handshake with it directly. The wrapper redirects non-protocol logging to `stderr` before loading the published package.
+The upstream package was not designed for Codex's MCP expectations. In practice it writes normal logs to `stdout`, which interferes with stdio transport, so Codex cannot reliably handshake with it directly. This wrapper runs as a small first-party MCP server using the official MCP SDK and calls the Telegram Bot API directly.
+
+Set these environment variables in your Codex MCP config:
+
+- `TELEGRAM_BOT_TOKEN`: required bot token
+- `TELEGRAM_DEFAULT_CHAT_ID`: optional default destination for personal messages
+
+When `TELEGRAM_DEFAULT_CHAT_ID` is configured, `SEND_MESSAGE` can omit `chatId` and will default to that chat automatically.
 
 This is a local integration workaround for this project. It does not change Copilot Money MCP behavior and it is not a forked upstream release.
 
