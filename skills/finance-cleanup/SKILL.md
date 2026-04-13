@@ -9,14 +9,16 @@ Walk the user through a structured cleanup of their Copilot Money transaction da
 
 ## Phase 1 — Gather Data
 
-1. **Read the user profile.** Open `skills/user-profile.md` and note any existing preferences, especially under "Cleanup Preferences" and "Preferences." These override your judgment — if the profile says "Uber Eats = Dining," never flag Uber Eats as miscategorized.
+1. **Read the shared finance rules.** Open `skills/finance-base/SKILL.md` first for shared communication, formatting, delivery, and profile conventions.
 
-2. **Ask about scope.** Before pulling data, ask the user:
+2. **Read the user profile.** Open `skills/user-profile.md` and note any existing preferences, especially under "Cleanup Preferences" and "Preferences." These override your judgment — if the profile says "Uber Eats = Dining," never flag Uber Eats as miscategorized.
+
+3. **Ask about scope.** Before pulling data, ask the user:
    - Full cleanup or focused? (e.g., "just recurrings" or "just uncategorized")
    - Any specific date range? Default to last 6 months.
    - Any accounts to skip?
 
-3. **Pull data.** Use these MCP tools:
+4. **Pull data.** Use these MCP tools:
    - `get_transactions` — unreviewed transactions (set `reviewed: false`)
    - `get_transactions` — last 6 months of all transactions (for historical patterns)
    - `get_recurring_transactions` — current recurring charges
