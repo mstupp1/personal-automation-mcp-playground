@@ -1,6 +1,6 @@
 ---
 name: finance-pulse
-description: "Use when the user wants a compact spending pulse, proactive trend check, pacing summary, or anomaly-oriented finance digest. On Mondays, switch to a weekly pulse focused on the prior week's patterns and current trajectory."
+description: "Use when the user wants a compact spending pulse, proactive trend check, pacing summary, or anomaly-oriented finance digest. Run the full weekly version only on Mondays; on other days, send only a brief delta update or omit it when there is no new signal."
 ---
 
 # Finance Pulse
@@ -18,8 +18,8 @@ This is not a ledger and it is not a full financial plan. The goal is a short, u
 3. Use the user's local timezone.
 
 4. Determine the mode from the current day in the user's timezone:
-   - Tuesday through Sunday: normal pulse
    - Monday: weekly pulse for the prior Monday through Sunday, plus current month context
+   - Tuesday through Sunday: brief pulse only, focused on new or changed signals since the last useful read
 
 5. Pull current-month transactions with `get_transactions`.
    Use:
@@ -40,11 +40,10 @@ This is not a ledger and it is not a full financial plan. The goal is a short, u
 
 ## What This Skill Should Answer
 
-Normal daily pulse:
-- Is spending broadly on track or drifting?
-- Which category or behavior is the main driver?
-- Is there anything unusual or newly worth attention?
-- What is the single most useful takeaway right now?
+Tuesday through Sunday brief pulse:
+- Is there any genuinely new insight since the last useful pulse?
+- Did a category, merchant, recurring charge, or anomaly materially change?
+- If there is no new signal, should the pulse be omitted entirely?
 
 Monday weekly pulse:
 - How did last week compare with recent weeks?
@@ -60,6 +59,8 @@ Always compute:
 - A comparison against recent baseline using the prior 90 days
 - Any notable new, unknown, or recurring-looking charges that seem worth mentioning
 - Pending transaction count if pending items materially affect the picture
+
+On Tuesday through Sunday, only surface these if they represent a real change or a clearly new signal. Do not restate stable conditions just to fill space.
 
 Also compute category trend signals where possible:
 - Current month category spend versus a recent rolling baseline
@@ -84,6 +85,27 @@ Good examples of worthwhile pulse signals:
 - Last week was normal overall, but convenience spending crept up
 
 Do not surface low-signal noise just because a number moved.
+
+## Tuesday Through Sunday Mode
+
+If the current day is not Monday in the user's timezone, do not generate the full pulse by default.
+
+In non-Monday mode:
+- Prefer a very brief update only when there is a new insight, a meaningful change, or a credible anomaly
+- If the picture is materially unchanged, omit the pulse entirely rather than sending a repetitive summary
+- Treat this as a delta check, not a daily recap
+- Usually mention only 1-2 items, and only if they are new or newly worth attention
+
+Good reasons to send a non-Monday pulse:
+- a recurring charge changed amount
+- a duplicate-looking or suspicious charge appeared
+- a category crossed from normal into clearly elevated
+- a new merchant or pattern materially changed the month trajectory
+
+Good reasons to omit a non-Monday pulse:
+- spending remains broadly on track with no new driver
+- known categories are behaving as expected
+- there are no meaningful anomalies, pacing shifts, or new recurring signals
 
 ## Recurring And Anomaly Checks
 
@@ -133,12 +155,18 @@ Monday mode should feel like a weekly briefing:
 
 This skill is read-only by default.
 
-The message should usually fit in 5-9 lines and contain:
+Monday weekly pulse should usually fit in 5-9 lines and contain:
 - a simple Copilot Money heading
 - one headline judgment
 - one comparison or pacing sentence
 - 1-3 short bullets or short lines for the key signals
 - one takeaway only if it matters
+
+Tuesday through Sunday brief pulse should usually fit in 2-5 lines and contain only:
+- a simple Copilot Money heading if a message is sent
+- one short headline or judgment
+- at most 1-2 short lines for the new signal
+- no filler takeaway
 
 Good pulse labels:
 - `on track`
@@ -199,6 +227,19 @@ Last week was [on track/drifting/running hot/calm]: [short headline with the mai
 [Optional meaningful takeaway]
 ```
 
+For Tuesday through Sunday, if there is a credible new signal, use a compressed structure like:
+
+```text
+Copilot Money Pulse
+
+[Short headline with the new signal.]
+
+- [New or changed signal]
+- [Optional second signal]
+```
+
+If there is no meaningful new signal on Tuesday through Sunday, omit the pulse entirely.
+
 Formatting guidance:
 - Use bullets only when they improve scanability
 - If a single short paragraph is cleaner, use that instead
@@ -210,4 +251,6 @@ Formatting guidance:
 2. Keep the pulse short enough to read in under 30 seconds.
 3. Prefer category and trend explanations over raw transaction dumps.
 4. Monday mode should emphasize weekly patterns and month trajectory.
-5. If nothing stands out, say so plainly rather than manufacturing drama.
+5. Tuesday through Sunday, omit the pulse entirely if there is no meaningful new insight.
+6. If you do send a non-Monday pulse, keep it materially shorter than the Monday weekly version.
+7. If nothing stands out in Monday mode, say so plainly rather than manufacturing drama.
