@@ -36,9 +36,18 @@ On Mondays, this skill should switch modes and produce a compact weekly-style an
 
 7. In Monday mode, if you need a stronger weekly baseline, pull enough history to compare against the last 4 completed weeks.
 
-8. Do the arithmetic in the shell for anything larger than a handful of transactions or comparison days. Do not do multi-step aggregation mentally.
+8. Use a spend-only baseline for comparisons.
+   - For daily mode baseline math, exclude credits, refunds, and other negative amounts from the comparison average unless the user explicitly asked for net flow behavior
+   - For Monday mode weekly baseline math, compare spend against recent weekly spend, not raw net totals
+   - If the baseline sample is distorted by obvious outliers or too few matching days, soften the comparison language
 
-9. This workflow runs every day. If there was no spend, keep the recap very short, slightly funny, and encouraging.
+9. Cross-check recurring context when it materially affects interpretation.
+   - If a notable charge is a known recurring that posted on roughly expected timing and amount, treat it as expected context rather than an anomaly
+   - Only elevate recurring charges when the amount drifted, timing is unusual, or the charge meaningfully changed the day's shape
+
+10. Do the arithmetic in the shell for anything larger than a handful of transactions or comparison days. Do not do multi-step aggregation mentally.
+
+11. This workflow runs every day. If there was no spend, keep the recap very short, slightly funny, and encouraging.
 
 ## What To Compute
 
@@ -52,7 +61,11 @@ Always compute:
 Also compute a baseline:
 - Preferred baseline: the last 6 matching weekdays before the target date
 - Fallback: the last 14 days if there are not enough matching weekdays
-- Compare yesterday against the baseline average total spend
+- Compare yesterday against the baseline average spend
+
+Also compute one light month-context check:
+- Did yesterday materially change month-to-date category posture or budget pressure?
+- Only use this if it sharpens the interpretation in one short line
 
 ## Monday Mode
 
@@ -101,6 +114,10 @@ Flag an unusually large single charge when either is true:
 
 Do not force a large-charge callout if the data is weak.
 
+If the charge is a known recurring:
+- Do not frame it as unusual just because it is large
+- Only mention it when the amount drifted, it posted unexpectedly, or it materially explains the day
+
 ### Essential vs Discretionary
 
 Classify the day at a high level:
@@ -144,8 +161,10 @@ Do:
 - Add one comparison line against baseline
 - Mention the top driver or top category
 - Mention a large charge only if it is genuinely notable
+- Prefer one interpretive sentence over an extra detail line when that keeps the message shorter
 - Mention essential vs discretionary only if it adds signal
 - Mention pending transactions when present
+- Add one short month-context line only when it changes the read on the day
 - End with a takeaway only if it is meaningful
 - In Monday mode, make the message feel like a weekly briefing with slightly more synthesis and slightly less transaction detail
 - Keep the message conversational when a list does not improve clarity
@@ -156,6 +175,8 @@ Do not:
 - Fill space with generic advice
 - Force a takeaway when nothing stands out
 - Turn simple spend mentions into bullets unless the bullets are doing real summary work
+- Treat an ordinary recurring charge as an alert
+- Add month context just because it exists
 
 ## Transaction Listing Policy
 
@@ -235,6 +256,19 @@ Formatting guidance:
 - If bullets are used for expenses, keep them plain and utilitarian
 - If emojis help, use them according to `skills/finance-base/SKILL.md`
 
+## Confidence And Quality
+
+Before sounding confident, check whether the data quality supports it.
+
+Downgrade strong claims when:
+- most or all of the day's charges are still pending
+- the day's meaning depends on a category likely to be noisy or miscategorized
+- the baseline sample is thin or obviously distorted
+
+In those cases:
+- prefer wording like `reads as`, `looks like`, or `so far`
+- avoid calling something a trend from one noisy day
+
 ## Rules
 
 1. Do not turn the recap into a ledger.
@@ -242,5 +276,6 @@ Formatting guidance:
 3. Be selective about listing merchants.
 4. Be honest when category or merchant interpretation is weak.
 5. Keep no-spend days short and slightly playful.
-6. If nothing is interesting, the message should still be useful because it is compact and grounded.
-7. On Mondays, favor a weekly view over a literal Sunday-only recap.
+6. Use spend-only baselines unless the user explicitly wants net-flow framing.
+7. If nothing is interesting, the message should still be useful because it is compact and grounded.
+8. On Mondays, favor a weekly view over a literal Sunday-only recap.

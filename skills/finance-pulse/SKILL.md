@@ -36,7 +36,16 @@ This is not a ledger and it is not a full financial plan. The goal is a short, u
 
 8. Pull goals with `get_goals` and budgets with `get_budgets` when that data is available and relevant. Use it to improve pacing or obligation context, but do not invent precision if the profile is incomplete.
 
-9. Do arithmetic in the shell for category comparisons, weekly comparisons, anomaly counts, or pacing math. Do not do multi-step aggregation mentally.
+9. Use spend-only comparison baselines for category and weekly trend checks.
+   - Exclude credits, refunds, and other negative amounts from spend baselines unless the user explicitly wants net-flow framing
+   - Compare current category spend against recent category spend, not against mixed net totals
+   - If a baseline is thin, noisy, or distorted by one-off reimbursements, soften the wording
+
+10. Cross-check recurring context before treating a charge as a signal.
+   - Known recurring charges that post on expected timing and amount are context, not alerts
+   - Recurring charges become pulse-worthy when amount, timing, or category behavior materially changed
+
+11. Do arithmetic in the shell for category comparisons, weekly comparisons, anomaly counts, or pacing math. Do not do multi-step aggregation mentally.
 
 ## What This Skill Should Answer
 
@@ -59,6 +68,7 @@ Always compute:
 - A comparison against recent baseline using the prior 90 days
 - Any notable new, unknown, or recurring-looking charges that seem worth mentioning
 - Pending transaction count if pending items materially affect the picture
+- A light budget-pressure check for categories that are already over budget or unusually far along for this point in the month
 
 On Tuesday through Sunday, only surface these if they represent a real change or a clearly new signal. Do not restate stable conditions just to fill space.
 
@@ -83,6 +93,7 @@ Good examples of worthwhile pulse signals:
 - A recurring charge changed amount
 - A new merchant appeared that does not fit a known pattern
 - Last week was normal overall, but convenience spending crept up
+- Spending is not alarming overall, but one budget category is getting tight earlier than usual
 
 Do not surface low-signal noise just because a number moved.
 
@@ -106,6 +117,7 @@ Good reasons to omit a non-Monday pulse:
 - spending remains broadly on track with no new driver
 - known categories are behaving as expected
 - there are no meaningful anomalies, pacing shifts, or new recurring signals
+- budget posture is materially unchanged
 
 ## Recurring And Anomaly Checks
 
@@ -127,6 +139,8 @@ Prioritize:
   - mild spending drift
 
 Keep false positives low. If you are not confident, soften the wording or omit it.
+
+Known recurring charges that posted normally should not consume one of the limited pulse slots.
 
 ## Monday Mode
 
@@ -186,12 +200,15 @@ Do:
 - Mention exact merchants only when they explain the signal
 - Use plain lists when listing helps clarity
 - Stay conversational when bullets are not necessary
+- Use budget pressure as supporting context only when it clarifies why a signal matters
 
 Do not:
 - List routine categories just to fill space
 - Pretend to know free cash flow if the necessary profile data is not there
 - Force a warning every time
 - Repeat the same category commentary if nothing material changed
+- Burn a pulse slot on an expected recurring charge
+- Add a budget section when a single phrase would do
 
 ## Output Template
 
@@ -245,6 +262,20 @@ Formatting guidance:
 - If a single short paragraph is cleaner, use that instead
 - If emojis help, use them according to `skills/finance-base/SKILL.md`
 
+## Confidence And Quality
+
+Before escalating a pulse signal, check whether confidence is high enough.
+
+Downgrade or omit the signal when:
+- the picture depends heavily on pending charges
+- the baseline is thin or obviously noisy
+- the category signal is driven by `Other` or another likely miscategorized bucket
+- the apparent anomaly is explained by a normal recurring charge
+
+When confidence is limited:
+- use softer phrasing like `looks elevated`, `starting to drift`, or `so far`
+- avoid declaring a durable trend from weak evidence
+
 ## Rules
 
 1. This is a situational-awareness skill, not a spending ledger.
@@ -253,4 +284,5 @@ Formatting guidance:
 4. Monday mode should emphasize weekly patterns and month trajectory.
 5. Tuesday through Sunday, omit the pulse entirely if there is no meaningful new insight.
 6. If you do send a non-Monday pulse, keep it materially shorter than the Monday weekly version.
-7. If nothing stands out in Monday mode, say so plainly rather than manufacturing drama.
+7. Use spend-only baselines unless the user explicitly wants net-flow framing.
+8. If nothing stands out in Monday mode, say so plainly rather than manufacturing drama.
