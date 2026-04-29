@@ -106,6 +106,7 @@ In non-Monday mode:
 - If the picture is materially unchanged, omit the pulse entirely rather than sending a repetitive summary
 - Treat this as a delta check, not a daily recap
 - Usually mention only 1-2 items, and only if they are new or newly worth attention
+- If you omit the pulse, do not add a meta-line explaining that it was omitted
 
 Good reasons to send a non-Monday pulse:
 - a recurring charge changed amount
@@ -209,6 +210,7 @@ Do not:
 - Repeat the same category commentary if nothing material changed
 - Burn a pulse slot on an expected recurring charge
 - Add a budget section when a single phrase would do
+- Say that you are omitting the pulse; if there is no new signal, leave it out completely
 
 ## Output Template
 
