@@ -82,6 +82,24 @@ When a task-specific workflow or invoking prompt requires delivery:
 
 If delivery is not requested, stop at the final composed message.
 
+### Telegram Delivery Notes
+
+For this user and repo, Telegram delivery has a few environment-specific traps:
+
+- Do not assume a Telegram failure means the bot token or chat ID is wrong
+- In the default Codex sandbox, DNS for external hosts may fail even when the Mac itself has working internet
+- If `api.telegram.org` fails to resolve in-sandbox, treat that as a sandbox-network issue first
+- On this machine, Python `urllib` is not a reliable Telegram send path because HTTPS requests may fail with `CERTIFICATE_VERIFY_FAILED` due to a self-signed certificate in the trust chain
+- Prefer `curl` for Telegram Bot API delivery when sending from the shell
+- If delivery fails in-sandbox on DNS or host-resolution errors, retry the send out of sandbox before concluding Telegram is down
+
+Preferred troubleshooting order:
+1. Confirm the message text is finalized before debugging delivery.
+2. Check whether the failure is DNS or host resolution versus an actual Telegram API response.
+3. If the error is in-sandbox DNS resolution, retry with out-of-sandbox `curl`.
+4. If `curl` works but Python does not, trust `curl` and record the Python TLS issue as local environment noise, not a Telegram outage.
+5. When delivery succeeds, record the working path in automation memory so later runs reuse it.
+
 ## Rules
 
 1. Do not turn summaries into ledgers unless the workflow explicitly calls for that.
